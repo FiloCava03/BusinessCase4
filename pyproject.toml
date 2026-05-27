@@ -12,6 +12,7 @@ authors = [{name = "Filippo Cavalieri"}]
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
+    "pyarrow>=14",
     "scipy>=1.11",
     "scikit-learn>=1.4",
     "statsmodels>=0.14",
