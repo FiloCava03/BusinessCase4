@@ -6,6 +6,7 @@ from sentinel_alpha.detectors.iforest import IForestDetector
 from sentinel_alpha.detectors.kpca import KPCADetector
 from sentinel_alpha.detectors.copod import COPODDetector
 from sentinel_alpha.detectors.autoencoder import AEDetector
+from sentinel_alpha.detectors.lof import LOFDetector
 
 
 DETECTOR_REGISTRY: dict[str, type[AnomalyDetector]] = {
@@ -15,16 +16,18 @@ DETECTOR_REGISTRY: dict[str, type[AnomalyDetector]] = {
     "kpca":   KPCADetector,
     "copod":  COPODDetector,
     "ae":     AEDetector,
+    "lof":    LOFDetector,
 }
 
 
 def build_default_detectors() -> dict[str, AnomalyDetector]:
-    """Construct the six default detectors with package-wide defaults."""
+    """Construct the seven default detectors with package-wide defaults."""
     return {name: cls() for name, cls in DETECTOR_REGISTRY.items()}
 
 
 __all__ = [
     "AnomalyDetector", "LedoitWolfMVG", "GMMDetector",
     "IForestDetector", "KPCADetector", "COPODDetector", "AEDetector",
+    "LOFDetector",
     "DETECTOR_REGISTRY", "build_default_detectors",
 ]

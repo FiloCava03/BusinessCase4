@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
-    roc_auc_score, average_precision_score, f1_score, precision_score, recall_score,
-    brier_score_loss,
+    roc_auc_score, average_precision_score, f1_score, fbeta_score,
+    precision_score, recall_score, brier_score_loss,
 )
 
 from sentinel_alpha.stack.calibrate import expected_calibration_error
@@ -19,6 +19,7 @@ def classification_report_dict(y_true: np.ndarray, p: np.ndarray, threshold: flo
         "roc_auc": float(roc_auc_score(y_true, p)) if len(np.unique(y_true)) == 2 else float("nan"),
         "pr_auc":  float(average_precision_score(y_true, p)) if len(np.unique(y_true)) == 2 else float("nan"),
         "f1":      float(f1_score(y_true, y_pred, zero_division=0)),
+        "f0_5":    float(fbeta_score(y_true, y_pred, beta=0.5, zero_division=0)),
         "precision": float(precision_score(y_true, y_pred, zero_division=0)),
         "recall":  float(recall_score(y_true, y_pred, zero_division=0)),
         "brier":   float(brier_score_loss(y_true, p)) if len(np.unique(y_true)) == 2 else float("nan"),

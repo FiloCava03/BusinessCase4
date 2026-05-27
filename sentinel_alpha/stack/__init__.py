@@ -47,7 +47,7 @@ class StackPipeline:
     """
     cal_frac: float = 0.20
     detector_factory: Callable[[], dict[str, AnomalyDetector]] = field(default=build_default_detectors)
-    detector_names: list[str] = field(default_factory=lambda: ["mvg", "gmm", "iforest", "kpca", "copod", "ae"])
+    detector_names: list[str] = field(default_factory=lambda: ["mvg", "gmm", "iforest", "kpca", "copod", "ae", "lof"])
     random_state: int = SEED
 
     def fit(self, X_train: np.ndarray, y_train: np.ndarray) -> "StackPipeline":

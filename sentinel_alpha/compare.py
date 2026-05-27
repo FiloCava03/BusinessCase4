@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import (
     roc_auc_score, average_precision_score,
-    precision_score, recall_score, f1_score, brier_score_loss,
+    precision_score, recall_score, f1_score, fbeta_score, brier_score_loss,
 )
 
 from sentinel_alpha.config import ARTIFACTS_DIR, SEED, CRISES
@@ -37,6 +37,7 @@ def _classifier_row(name: str, y_true: np.ndarray, p: np.ndarray, y_pred: np.nda
         "Precision": float(precision_score(y_true, y_pred, zero_division=0)),
         "Recall":    float(recall_score(y_true, y_pred, zero_division=0)),
         "F1":        float(f1_score(y_true, y_pred, zero_division=0)),
+        "F0.5":      float(fbeta_score(y_true, y_pred, beta=0.5, zero_division=0)),
         "Brier":     float(brier_score_loss(y_true, _to01(p))) if len(np.unique(y_true)) == 2 else np.nan,
         "ECE":       float(expected_calibration_error(y_true, _to01(p))),
     }
@@ -106,7 +107,7 @@ def run_comparison() -> pd.DataFrame:
     bh_states = _naive_strategy(np.zeros(ho_idx.size, dtype=int), ho_index)
     bh_class = {
         "model": "Buy_and_hold", "AUC": np.nan, "PR-AUC": np.nan,
-        "Precision": 0.0, "Recall": 0.0, "F1": 0.0,
+        "Precision": 0.0, "Recall": 0.0, "F1": 0.0, "F0.5": 0.0,
         "Brier": float(np.mean((yho_arr - yho_arr.mean()) ** 2)),
         "ECE": float("nan"),
     }
@@ -173,14 +174,14 @@ def run_comparison() -> pd.DataFrame:
 
 def to_markdown(df: pd.DataFrame) -> str:
     metric_order = [
-        "AUC", "PR-AUC", "Precision", "Recall", "F1", "Brier", "ECE",
+        "AUC", "PR-AUC", "Precision", "Recall", "F1", "F0.5", "Brier", "ECE",
         "AnnRet", "AnnVol", "Sharpe", "Sortino", "MaxDD", "Calmar",
         "Turnover/y", "Flips", "OffRate_COVID",
     ]
     df = df[metric_order].copy()
     fmt = {
         "AUC": "{:.3f}", "PR-AUC": "{:.3f}", "Precision": "{:.3f}", "Recall": "{:.3f}",
-        "F1": "{:.3f}", "Brier": "{:.3f}", "ECE": "{:.3f}",
+        "F1": "{:.3f}", "F0.5": "{:.3f}", "Brier": "{:.3f}", "ECE": "{:.3f}",
         "AnnRet": "{:.1%}", "AnnVol": "{:.1%}", "Sharpe": "{:.2f}", "Sortino": "{:.2f}",
         "MaxDD": "{:.1%}", "Calmar": "{:.2f}", "Turnover/y": "{:.2f}", "Flips": "{:.0f}",
         "OffRate_COVID": "{:.0%}",
