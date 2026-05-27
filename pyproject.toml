@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinel_alpha"
+version = "0.1.0"
+description = "Sentinel-alpha: a calibrated multi-view nowcaster for systematic risk-on / risk-off allocation."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Filippo Cavalieri"}]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+    "statsmodels>=0.14",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "openpyxl>=3.1",
+    "torch>=2.1",
+    "pyod>=2.0",
+    "shap>=0.45",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "jupyter>=1.0", "ipykernel>=6.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sentinel_alpha*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
