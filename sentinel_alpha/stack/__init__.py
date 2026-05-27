@@ -52,7 +52,7 @@ class StackPipeline:
     # they are not in the default stack: a CV-vs-hold-out ablation showed they
     # boost CV AUC (~0.79) at the cost of OOS PR-AUC (-0.04), which is a
     # textbook small-sample over-fit on a regime-shifted hold-out (COVID).
-    detector_names: list[str] = field(default_factory=lambda: ["mvg", "gmm", "iforest", "kpca", "copod", "ae", "lof"])
+    detector_names: list[str] = field(default_factory=lambda: ["mvg", "gmm", "iforest", "kpca", "copod", "ae_ensemble", "lof"])
     random_state: int = SEED
 
     def fit(self, X_train: np.ndarray, y_train: np.ndarray) -> "StackPipeline":

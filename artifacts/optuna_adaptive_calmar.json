@@ -1,0 +1,7 @@
+{
+  "roll_win": 104,
+  "roll_q": 0.8079048024115818,
+  "cv_calmar": 0.30192205340040845,
+  "objective": "calmar",
+  "n_trials": 80
+}

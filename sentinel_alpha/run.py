@@ -25,6 +25,7 @@ from sentinel_alpha.utils.io import save_parquet, save_json
 from sentinel_alpha.data.loader import load_dataset
 from sentinel_alpha.data.transforms import stationarize
 from sentinel_alpha.features.engineer import add_engineered
+from sentinel_alpha.features.class_pca import PerClassPCA, map_columns_to_classes
 from sentinel_alpha.cv.walkforward import PurgedExpandingSplit
 from sentinel_alpha.stack import StackPipeline
 from sentinel_alpha.strategy import (
@@ -37,23 +38,36 @@ def _log(msg: str) -> None:
     print(f"[sentinel_alpha] {msg}", flush=True)
 
 
-def stage_data() -> None:
-    set_global_seed(SEED)
+def _build_feature_panel() -> tuple:
+    """Single source of truth for the augmented feature panel.
+    Returns (dataset, F_augmented, risk_appetite).
+    """
+    from sentinel_alpha.config import HOLDOUT_START
     d = load_dataset()
     Z = stationarize(d.X, d.type_map)
     F, ra = add_engineered(Z)
-    save_parquet(F, "features")
-    save_parquet(d.y.to_frame().rename(columns={0: "Y"}), "labels")  # binary
+    train_idx = F.index[F.index < pd.Timestamp(HOLDOUT_START)]
+    class_to_cols = map_columns_to_classes(list(F.columns), d.type_map)
+    class_pca = PerClassPCA(class_to_cols, n_components=2).fit(F.loc[train_idx])
+    F_aug = class_pca.transform(F)
+    return d, F_aug, ra
+
+
+def stage_data() -> None:
+    set_global_seed(SEED)
+    d, F_aug, ra = _build_feature_panel()
+    n_pca = sum(c.startswith("ENG_pc_") for c in F_aug.columns)
+    _log(f"per-class PCA added {n_pca} components")
+    save_parquet(F_aug, "features")
+    save_parquet(d.y.to_frame().rename(columns={0: "Y"}), "labels")
     ra.to_frame().to_parquet(ARTIFACTS_DIR / "risk_appetite.parquet")
     d.X.to_parquet(ARTIFACTS_DIR / "prices_raw.parquet")
-    _log(f"saved features {F.shape}, labels {d.y.shape}, risk_appetite, prices_raw")
+    _log(f"saved features {F_aug.shape}, labels {d.y.shape}, risk_appetite, prices_raw")
 
 
 def stage_cv() -> None:
     set_global_seed(SEED)
-    d = load_dataset()
-    Z = stationarize(d.X, d.type_map)
-    F, _ = add_engineered(Z)
+    d, F, _ = _build_feature_panel()
     y = d.y.reindex(F.index).astype(int)
     splitter = PurgedExpandingSplit()
     folds = splitter.folds(F.index)
@@ -107,9 +121,7 @@ def stage_cv() -> None:
 
 def stage_backtest() -> None:
     set_global_seed(SEED)
-    d = load_dataset()
-    Z = stationarize(d.X, d.type_map)
-    F, ra = add_engineered(Z)
+    d, F, ra = _build_feature_panel()
     y = d.y.reindex(F.index).astype(int)
 
     splitter = PurgedExpandingSplit()

@@ -6,15 +6,15 @@
   "n_holdout_pos": 23,
   "holdout_start": "2019-01-01",
   "holdout_end": "2021-04-20",
-  "auc_raw_holdout": 0.8189884649511979,
-  "pr_auc_raw_holdout": 0.5668386635531784,
+  "auc_raw_holdout": 0.8296362023070097,
+  "pr_auc_raw_holdout": 0.6262755890421421,
   "backtest_metrics": {
-    "ann_return": 0.13185049380916558,
-    "ann_vol": 0.11759294025392444,
-    "sharpe": 1.0544979428256345,
-    "sortino": 1.0211040571046284,
-    "max_drawdown": -0.20447007344974266,
-    "calmar": 0.6448400569561762,
+    "ann_return": 0.1279261547748931,
+    "ann_vol": 0.11693367307257889,
+    "sharpe": 1.0306709022772391,
+    "sortino": 0.9866847689990438,
+    "max_drawdown": -0.20447007344974255,
+    "calmar": 0.6256473263620974,
     "bench_ann_return": 0.2747654035492706,
     "bench_ann_vol": 0.17512064729474267,
     "bench_sharpe": 1.3894975781004757,
@@ -28,6 +28,6 @@
     "enter": 0.6,
     "exit": 0.2,
     "dwell": 3,
-    "gate_tau": 1.0
+    "gate_tau": 0.25
   }
 }

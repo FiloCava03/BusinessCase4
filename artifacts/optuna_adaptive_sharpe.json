@@ -1,0 +1,7 @@
+{
+  "roll_win": 104,
+  "roll_q": 0.8002208097024002,
+  "cv_sharpe": 0.6142988547805991,
+  "objective": "sharpe",
+  "n_trials": 80
+}

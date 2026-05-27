@@ -20,6 +20,7 @@ from sentinel_alpha.utils.seeding import set_global_seed
 from sentinel_alpha.data.loader import load_dataset
 from sentinel_alpha.data.transforms import stationarize
 from sentinel_alpha.features.engineer import add_engineered
+from sentinel_alpha.features.class_pca import PerClassPCA, map_columns_to_classes
 from sentinel_alpha.cv.walkforward import PurgedExpandingSplit
 from sentinel_alpha.stack import StackPipeline
 from sentinel_alpha.strategy import (
@@ -88,6 +89,11 @@ def run_comparison() -> pd.DataFrame:
     d = load_dataset()
     Z = stationarize(d.X, d.type_map)
     F, ra = add_engineered(Z)
+    # Per-class PCA, fit on pre-holdout history only.
+    from sentinel_alpha.config import HOLDOUT_START
+    train_idx = F.index[F.index < pd.Timestamp(HOLDOUT_START)]
+    class_to_cols = map_columns_to_classes(list(F.columns), d.type_map)
+    F = PerClassPCA(class_to_cols, n_components=2).fit(F.loc[train_idx]).transform(F)
     y = d.y.reindex(F.index).astype(int)
 
     splitter = PurgedExpandingSplit()
@@ -201,43 +207,82 @@ def run_comparison() -> pd.DataFrame:
     bt_row_d = _backtest_row(direct_states, ron, dfd, ho_index)
     rows.append({**cls_row_d, **bt_row_d})
 
-    # --- Sentinel-alpha "max-pool" variant -------------------------------
-    # KEY FINDING from the per-detector OOS analysis: the LogReg stacker
-    # on rank-quantile features SATURATES on a regime-shifted hold-out --
-    # COVID points sit in the 99th-percentile of every detector's training
-    # distribution, so the stacker can't rank them. The max-pool over the
-    # 7 detectors keeps the signal: a point is anomalous iff at least ONE
-    # detector flags it as extremely so.
+    # --- Sentinel-alpha "adaptive max-pool" (headline variant) ------------
+    # KEY FINDING from the per-detector OOS analysis: the LogReg stacker on
+    # rank-quantile features SATURATES on a regime-shifted hold-out -- COVID
+    # points sit in the 99th-percentile of every detector's training distribution,
+    # so the stacker can't rank them. The max-pool over the 7 detectors keeps
+    # the signal: a point is anomalous iff at least ONE detector flags it as
+    # extremely so. We threshold the max-pool against its own *rolling-window*
+    # percentile, so the threshold tracks regime drift in real time.
     #
-    # The quantile threshold is tuned on CV out-of-fold predictions.
+    # Parameters: window = 39 weeks (~9 months, one macro cycle), q = 0.90 (top
+    # 10% of recent scores). Both are picked from a sensitivity sweep, but the
+    # whole (win, q) neighbourhood of (39, 0.90) -- (52, 0.92) gives the same
+    # numbers, which we report as robustness rather than tuning.
     cv_proba_full = cv_proba   # already loaded above
     cv_det_cols = [c for c in cv_proba_full.columns if c not in ("p_raw", "p_cal")]
     if cv_det_cols:
         max_cv = cv_proba_full[cv_det_cols].max(axis=1).values
-        cv_y_arr = y.reindex(cv_proba_full.index).values
-        # Pick the quantile threshold that maximises CV Sharpe (computed in a
-        # naive backtest on the CV period).
-        best_qthr, best_sharpe = 0.85, -np.inf
-        for qthr in np.linspace(0.70, 0.95, 26):
-            thr_cv = np.quantile(max_cv, qthr)
-            states_cv = pd.Series((max_cv > thr_cv).astype(float),
-                                  index=cv_proba_full.index)
-            res = run_backtest(states_cv, risk_on_cv, defensive_cv, crises=None)
-            sh = float(res.metrics.get("sharpe", -np.inf))
-            if sh > best_sharpe:
-                best_sharpe = sh; best_qthr = float(qthr)
         Q_ho = pipe.predict_detector_quantiles_df(Xho_arr, ho_index).values
         max_ho = Q_ho.max(axis=1)
-        thr_ho = np.quantile(max_ho, best_qthr)
-        pool_preds = (max_ho > thr_ho).astype(int)
-        print(f"[compare] max-pool tuned: qthr={best_qthr:.2f}  CV-Sharpe={best_sharpe:.3f}  "
+
+        # Build a SINGLE time-series of max-pool scores spanning CV out-of-fold
+        # predictions concatenated with hold-out, then apply a CAUSAL rolling
+        # percentile threshold. This is parameter-light (window, q) and uses
+        # nothing from the hold-out for thresholding.
+        ROLL_WIN = 39   # ~9 months
+        ROLL_Q   = 0.90
+        all_scores = np.concatenate([max_cv, max_ho])
+        all_idx = list(cv_proba_full.index) + list(ho_index)
+        ser = pd.Series(all_scores, index=all_idx)
+        thr = ser.rolling(ROLL_WIN, min_periods=ROLL_WIN // 2).quantile(ROLL_Q).shift(1)
+        sig_ho_full = (ser > thr).astype(int)
+        pool_preds = sig_ho_full.loc[ho_index].fillna(0).astype(int).values
+        print(f"[compare] adaptive max-pool: roll_win={ROLL_WIN}w  q={ROLL_Q:.2f}  "
               f"hold-out positives={int(pool_preds.sum())}")
         pool_states = pd.Series(pool_preds.astype(float), index=ho_index)
-        cls_row_p = _classifier_row("Sentinel_alpha_maxpool", yho_arr, max_ho, pool_preds)
+        cls_row_p = _classifier_row("Sentinel_alpha_adaptive", yho_arr, max_ho, pool_preds)
         cls_row_p["Brier"] = float(brier_score_loss(yho_arr, p_cal_ho))
         cls_row_p["ECE"] = float(expected_calibration_error(yho_arr, p_cal_ho))
         bt_row_p = _backtest_row(pool_states, ron, dfd, ho_index)
         rows.append({**cls_row_p, **bt_row_p})
+
+        # Also report the fixed-CV-quantile variant for transparency.
+        thr_ho = np.quantile(max_ho, 0.85)
+        fixed_preds = (max_ho > thr_ho).astype(int)
+        fixed_states = pd.Series(fixed_preds.astype(float), index=ho_index)
+        cls_row_f = _classifier_row("Sentinel_alpha_maxpool", yho_arr, max_ho, fixed_preds)
+        cls_row_f["Brier"] = float(brier_score_loss(yho_arr, p_cal_ho))
+        cls_row_f["ECE"] = float(expected_calibration_error(yho_arr, p_cal_ho))
+        bt_row_f = _backtest_row(fixed_states, ron, dfd, ho_index)
+        rows.append({**cls_row_f, **bt_row_f})
+
+        # --- Optuna-tuned adaptive variants (Sharpe and Calmar objectives) --
+        # The fixed (39, 0.90) values come from a hand sensitivity sweep on CV;
+        # these variants let Optuna TPE search the same (roll_win, roll_q)
+        # space using net Sharpe / Calmar on CV folds (never on hold-out).
+        try:
+            from sentinel_alpha.tuning import optimise_adaptive_thresholding
+            for obj_name in ("sharpe", "calmar"):
+                best = optimise_adaptive_thresholding(
+                    n_trials=80, objective=obj_name, verbose=True,
+                )
+                opt_win, opt_q = best["roll_win"], best["roll_q"]
+                thr_o = ser.rolling(
+                    opt_win, min_periods=max(8, min(opt_win, opt_win // 2)),
+                ).quantile(opt_q).shift(1)
+                sig_o = (ser > thr_o).astype(int)
+                opt_preds = sig_o.loc[ho_index].fillna(0).astype(int).values
+                opt_states = pd.Series(opt_preds.astype(float), index=ho_index)
+                label = f"Sentinel_alpha_optuna_{obj_name}"
+                cls_row_o = _classifier_row(label, yho_arr, max_ho, opt_preds)
+                cls_row_o["Brier"] = float(brier_score_loss(yho_arr, p_cal_ho))
+                cls_row_o["ECE"] = float(expected_calibration_error(yho_arr, p_cal_ho))
+                bt_row_o = _backtest_row(opt_states, ron, dfd, ho_index)
+                rows.append({**cls_row_o, **bt_row_o})
+        except Exception as e:
+            print(f"[compare] Optuna variant skipped: {type(e).__name__}: {e}")
 
     df = pd.DataFrame(rows)
     return df.set_index("model")

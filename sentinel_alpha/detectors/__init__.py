@@ -6,20 +6,22 @@ from sentinel_alpha.detectors.iforest import IForestDetector
 from sentinel_alpha.detectors.kpca import KPCADetector
 from sentinel_alpha.detectors.copod import COPODDetector
 from sentinel_alpha.detectors.autoencoder import AEDetector
+from sentinel_alpha.detectors.ae_ensemble import AEEnsembleDetector
 from sentinel_alpha.detectors.lof import LOFDetector
 from sentinel_alpha.detectors.supervised import RFDetector, LogRegDetector
 
 
 DETECTOR_REGISTRY: dict[str, type[AnomalyDetector]] = {
-    "mvg":     LedoitWolfMVG,
-    "gmm":     GMMDetector,
-    "iforest": IForestDetector,
-    "kpca":    KPCADetector,
-    "copod":   COPODDetector,
-    "ae":      AEDetector,
-    "lof":     LOFDetector,
-    "rf":      RFDetector,        # supervised
-    "logreg":  LogRegDetector,    # supervised
+    "mvg":         LedoitWolfMVG,
+    "gmm":         GMMDetector,
+    "iforest":     IForestDetector,
+    "kpca":        KPCADetector,
+    "copod":       COPODDetector,
+    "ae":          AEDetector,
+    "ae_ensemble": AEEnsembleDetector,
+    "lof":         LOFDetector,
+    "rf":          RFDetector,        # supervised
+    "logreg":      LogRegDetector,    # supervised
 }
 
 
@@ -36,6 +38,7 @@ def build_default_detectors() -> dict[str, AnomalyDetector]:
 __all__ = [
     "AnomalyDetector", "LedoitWolfMVG", "GMMDetector",
     "IForestDetector", "KPCADetector", "COPODDetector", "AEDetector",
+    "AEEnsembleDetector",
     "LOFDetector", "RFDetector", "LogRegDetector",
     "DETECTOR_REGISTRY", "build_default_detectors",
 ]
