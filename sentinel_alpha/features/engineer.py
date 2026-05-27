@@ -8,6 +8,15 @@ VOL_WIN: int = 4
 CORR_WIN: int = 4
 Z_WIN: int = 52
 
+# Pruning policy (see notebook Step 4 diagnostic, all computed pre-hold-out).
+# ENG candidates with univariate AUC < 0.55 -- dropped.
+WEAK_ENG: tuple[str, ...] = ("ENG_term_spread_d", "ENG_eq_credit_corr4w")
+# Lag-1 allow-list: of the 43 lag-1 candidates, only VIX_lvl_lag1 survives the
+# ablation: it is the single most predictive feature in the panel (uAUC ~ 0.85)
+# and adds CV signal on top of the contemporaneous block. The other 42 lag-1
+# columns add net noise to a linear stacker, so we drop them.
+KEEP_LAG1: tuple[str, ...] = ("VIX_lvl_lag1",)
+
 
 def _safe_get(Z: pd.DataFrame, name: str) -> pd.Series:
     if name not in Z.columns:
@@ -24,11 +33,16 @@ def _rolling_zscore(s: pd.Series, win: int) -> pd.Series:
     return z.fillna(0.0)
 
 
-def add_engineered(Z: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+def add_engineered(Z: pd.DataFrame, prune_weak: bool = True) -> tuple[pd.DataFrame, pd.Series]:
     """Add engineered columns to `Z`. Returns (augmented_Z, risk_appetite).
 
     The risk_appetite series is exported separately because the strategy gate
     consumes it directly, distinct from the detector feature matrix.
+
+    When ``prune_weak=True`` (default), applies the post-benchmark pruning
+    policy described in the Step 4 diagnostic (notebook): drop the two ENG
+    features below uAUC 0.55, and keep only ``VIX_lvl_lag1`` from the lag-1
+    block (the rest are net noise to the linear stacker).
     """
     out = Z.copy()
 
@@ -77,5 +91,12 @@ def add_engineered(Z: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
     # Drop the first row introduced by lag-1.
     out = out.iloc[1:]
     risk_appetite = risk_appetite.loc[out.index]
+
+    if prune_weak:
+        weak_eng = [c for c in WEAK_ENG if c in out.columns]
+        all_lag1 = [c for c in out.columns if c.endswith("_lag1")]
+        drop_lag1 = [c for c in all_lag1 if c not in KEEP_LAG1]
+        out = out.drop(columns=weak_eng + drop_lag1)
+
     assert not out.isna().any().any(), "NaNs leaked through add_engineered()"
     return out, risk_appetite

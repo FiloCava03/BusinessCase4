@@ -91,28 +91,39 @@ def run_backtest(
 ) -> BacktestResult:
     """Execute the switch strategy and compute headline + per-crisis metrics.
 
+    `states` may be either:
+      - binary 0/1 (legacy state-machine output) -- 0 = full risk-on, 1 = full off
+      - continuous float in [0, 1] -- the defensive weight at each week
+
+    The TC model charges `tc_bps_per_leg * 2` bps on the *absolute change* in
+    defensive weight from one week to the next, so the same accounting applies
+    cleanly to both binary flips and continuous tilts.
+
     Convention: state[t] is the regime decided using p[t]. With a 1-week
     execution lag the strategy holds state[t-1]'s allocation during week t.
     """
     idx = states.index
-    states_eff = states.shift(1).fillna(0).astype(int)  # 1-week execution lag
+    states_eff = states.shift(1).fillna(0.0).astype(float)  # 1-week execution lag, continuous
+    states_eff = states_eff.clip(0.0, 1.0)
 
     risk_on_simple = risk_on_simple.reindex(idx).fillna(0.0)
     defensive_simple = defensive_simple.reindex(idx).fillna(0.0)
 
-    # state 0 = 100% risk-on; state 1 = 100% defensive
-    w_on = (1 - states_eff).astype(float)
-    w_off = states_eff.astype(float)
+    # w_off in [0, 1]; w_on = 1 - w_off.
+    w_off = states_eff
+    w_on = 1.0 - w_off
     gross = w_on * risk_on_simple + w_off * defensive_simple
 
     mxwo_simple = risk_on_simple  # alias kept for clarity below
 
-    # Transaction costs: when state flips, pay tc_bps_per_leg twice (sell + buy)
-    # on the entire portfolio weight that moves.
-    flips = (states_eff != states_eff.shift(1).fillna(0)).astype(int)
-    # Each flip moves 100% of NAV; cost = 2 * tc_bps in bps -> /10000 in fraction.
-    tc = flips * (2.0 * tc_bps_per_leg / 10000.0)
+    # TC proportional to |Δw_off|, charging 2*tc_bps_per_leg (sell + buy).
+    dw = (states_eff - states_eff.shift(1).fillna(0.0)).abs()
+    tc = dw * (2.0 * tc_bps_per_leg / 10000.0)
     net = gross - tc
+
+    # "n_flips" kept for backward-compat: number of weeks the integer state changed.
+    states_int = (states_eff >= 0.5).astype(int)
+    flips = (states_int != states_int.shift(1).fillna(0)).astype(int)
 
     equity = (1.0 + net).cumprod()
     equity_bench = (1.0 + mxwo_simple).cumprod()
@@ -132,7 +143,9 @@ def run_backtest(
         if not mask.any():
             continue
         n_weeks = int(mask.sum())
-        n_off = int((states_eff[mask] == 1).sum())
+        # "off weeks" = weeks where the strategy held >= 50% defensive (consistent
+        # for binary and continuous allocations).
+        n_off = int((states_int[mask] == 1).sum())
         cum_strat = float((1.0 + net[mask]).prod() - 1.0)
         cum_bench = float((1.0 + mxwo_simple[mask]).prod() - 1.0)
         max_dd_strat = float(((1.0 + net[mask]).cumprod() / (1.0 + net[mask]).cumprod().cummax() - 1.0).min())

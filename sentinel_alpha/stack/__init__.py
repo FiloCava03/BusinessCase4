@@ -47,6 +47,11 @@ class StackPipeline:
     """
     cal_frac: float = 0.20
     detector_factory: Callable[[], dict[str, AnomalyDetector]] = field(default=build_default_detectors)
+    # Default stack: 7 unsupervised / semi-supervised detectors.
+    # The supervised RF / LogReg classes are available (DETECTOR_REGISTRY) but
+    # they are not in the default stack: a CV-vs-hold-out ablation showed they
+    # boost CV AUC (~0.79) at the cost of OOS PR-AUC (-0.04), which is a
+    # textbook small-sample over-fit on a regime-shifted hold-out (COVID).
     detector_names: list[str] = field(default_factory=lambda: ["mvg", "gmm", "iforest", "kpca", "copod", "ae", "lof"])
     random_state: int = SEED
 

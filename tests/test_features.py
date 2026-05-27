@@ -28,13 +28,30 @@ def test_features_no_lookahead():
     assert diff < 1e-10, f"look-ahead detected: max diff before perturbation = {diff}"
 
 
-def test_features_shape_and_no_nan():
+def test_features_shape_and_no_nan_pruned_default():
     d = load_dataset()
     Z = stationarize(d.X, d.type_map)
-    F, ra = add_engineered(Z)
+    F, ra = add_engineered(Z)  # prune_weak=True by default
     assert not F.isna().any().any()
     assert not ra.isna().any()
-    # Should have engineered columns
+    # The strong ENG features must remain.
+    must_keep = {"ENG_eq_vol4w", "ENG_credit_excess", "ENG_vix_z52", "ENG_vix_d", "ENG_eq_dm"}
+    assert must_keep <= set(F.columns)
+    # The weak ENG features must be dropped.
+    must_drop = {"ENG_eq_credit_corr4w", "ENG_term_spread_d"}
+    assert must_drop.isdisjoint(F.columns)
+    # Of the 43 lag-1 candidates, only VIX_lvl_lag1 must survive.
+    lag1_kept = {c for c in F.columns if c.endswith("_lag1")}
+    assert lag1_kept == {"VIX_lvl_lag1"}
+
+
+def test_features_unpruned_keeps_everything():
+    d = load_dataset()
+    Z = stationarize(d.X, d.type_map)
+    F, _ = add_engineered(Z, prune_weak=False)
     expected_eng = {"ENG_eq_vol4w", "ENG_eq_credit_corr4w", "ENG_term_spread_d",
                     "ENG_credit_excess", "ENG_vix_z52", "ENG_vix_d", "ENG_eq_dm"}
     assert expected_eng <= set(F.columns)
+    # Un-pruned: all 43 lag-1 columns are present.
+    lag1_cols = [c for c in F.columns if c.endswith("_lag1")]
+    assert len(lag1_cols) >= 40
