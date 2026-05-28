@@ -1,33 +1,26 @@
 {
-  "seed": 42,
-  "n_train": 988,
-  "n_holdout": 121,
-  "n_train_pos": 214,
-  "n_holdout_pos": 23,
-  "holdout_start": "2019-01-01",
-  "holdout_end": "2021-04-20",
-  "auc_raw_holdout": 0.8296362023070097,
-  "pr_auc_raw_holdout": 0.6262755890421421,
-  "backtest_metrics": {
-    "ann_return": 0.1279261547748931,
-    "ann_vol": 0.11693367307257889,
-    "sharpe": 1.0306709022772391,
-    "sortino": 0.9866847689990438,
-    "max_drawdown": -0.20447007344974255,
-    "calmar": 0.6256473263620974,
-    "bench_ann_return": 0.2747654035492706,
-    "bench_ann_vol": 0.17512064729474267,
-    "bench_sharpe": 1.3894975781004757,
-    "bench_sortino": 1.3939898214920912,
-    "bench_max_drawdown": -0.27722049916020153,
-    "bench_calmar": 0.9911438886432703,
-    "turnover_per_year": 1.71900826446281,
-    "n_flips": 4.0
-  },
+  "headline_variant": "no_gmm   + p_raw thr",
+  "non_trading_excluded": [
+    "default-7 + p_cal thr"
+  ],
   "thresholds": {
     "enter": 0.6,
     "exit": 0.2,
     "dwell": 3,
-    "gate_tau": 0.25
+    "tau": 0.25
+  },
+  "bench_metrics": {
+    "ann_return": 0.275,
+    "sharpe": 1.389,
+    "max_drawdown": -0.277
+  },
+  "headline_metrics": {
+    "ann_return": 0.158,
+    "sharpe": 1.221,
+    "sortino": 1.209,
+    "max_dd": -0.204,
+    "calmar": 0.773,
+    "n_off": 38.0,
+    "flips": 2.0
   }
 }

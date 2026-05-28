@@ -6,11 +6,10 @@ SEED: int = 42
 
 PACKAGE_ROOT: Path = Path(__file__).resolve().parent
 PROJECT_ROOT: Path = PACKAGE_ROOT.parent
-REPO_ROOT: Path = PROJECT_ROOT.parent
 ARTIFACTS_DIR: Path = PROJECT_ROOT / "artifacts"
 ARTIFACTS_DIR.mkdir(exist_ok=True)
 
-DATA_FILE: Path = REPO_ROOT / "Dataset4_EWS.xlsx"
+DATA_FILE: Path = PROJECT_ROOT / "Dataset4_EWS.xlsx"
 
 # Walk-forward CV
 INITIAL_TRAIN_END: str = "2004-12-31"
@@ -38,11 +37,12 @@ TC_BPS_PER_LEG: float = 10.0  # 10 bps each side per leg flip
 
 # Named crises (start, end) inclusive
 CRISES: dict[str, tuple[str, str]] = {
-    "Dotcom":       ("2000-03-01", "2002-12-31"),
-    "GFC":          ("2007-10-01", "2009-06-30"),
-    "EU sovereign": ("2011-07-01", "2012-12-31"),
-    "2018 Q4":      ("2018-10-01", "2018-12-31"),
-    "COVID":        ("2020-02-01", "2020-12-31"),
+    "Dotcom":             ("2000-03-01", "2002-12-31"),
+    "GFC":                ("2007-10-01", "2009-06-30"),
+    "EU sovereign":       ("2011-07-01", "2012-12-31"),
+    "2015-16 China/oil":  ("2015-08-01", "2016-02-29"),
+    "2018 Q4":            ("2018-10-01", "2018-12-31"),
+    "COVID":              ("2020-02-01", "2020-12-31"),
 }
 
 # Per-ticker overrides where the Metadata "Type" is misleading.

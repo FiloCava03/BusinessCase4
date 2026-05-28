@@ -1,7 +1,4 @@
-# Sentinel-alpha
 
-A calibrated multi-view nowcaster for systematic risk-on / risk-off allocation, built on the
-PoliMI Business Case #4 Bloomberg weekly dataset (2000-2021).
 
 ## Pipeline
 
