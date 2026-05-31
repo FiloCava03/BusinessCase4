@@ -55,3 +55,34 @@ def test_train_window_expands_monotonically():
         cur_max = int(f.train_idx.max())
         assert cur_max > prev_max
         prev_max = cur_max
+
+
+def test_no_validation_row_reused_across_folds():
+    """Every index appears in at most one validation block across the whole
+    walk-forward sequence. Guards against the subtle embargo bug that allowed
+    val_k rows to re-enter train_{k+1}."""
+    splitter = PurgedExpandingSplit()
+    folds = splitter.folds(_index())
+    seen: set[int] = set()
+    for f in folds:
+        rows = set(f.val_idx.tolist())
+        overlap = seen & rows
+        assert not overlap, f"fold {f.fold_id} val overlaps prior val: {sorted(overlap)[:5]}"
+        seen |= rows
+
+
+def test_embargo_excluded_from_next_train():
+    """After fold k, the embargo window [val_end_k, val_end_k + embargo) must
+    NOT appear in train_{k+1}. This is the leakage fix verifier."""
+    from sentinel_alpha.config import EMBARGO_WEEKS
+    splitter = PurgedExpandingSplit()
+    folds = splitter.folds(_index())
+    for f, f_next in zip(folds, folds[1:]):
+        val_end = int(f.val_idx.max()) + 1  # exclusive
+        embargo_rows = set(range(val_end, val_end + EMBARGO_WEEKS))
+        train_next = set(f_next.train_idx.tolist())
+        leaked = embargo_rows & train_next
+        assert not leaked, (
+            f"embargo window after fold {f.fold_id} leaked into train of "
+            f"fold {f_next.fold_id}: rows {sorted(leaked)}"
+        )

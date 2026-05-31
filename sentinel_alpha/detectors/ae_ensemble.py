@@ -21,7 +21,7 @@ import numpy as np
 
 from sentinel_alpha.detectors.base import AnomalyDetector
 from sentinel_alpha.detectors.autoencoder import AEDetector
-from sentinel_alpha.config import SEED
+from sentinel_alpha.config import SEED, AE_VAL_FRAC
 
 
 class AEEnsembleDetector(AnomalyDetector):
@@ -32,7 +32,7 @@ class AEEnsembleDetector(AnomalyDetector):
         bottleneck: int = 8, hidden: int = 32, mid: int = 16,
         dropout: float = 0.2, noise_std: float = 0.05,
         lr: float = 1e-3, batch_size: int = 64,
-        max_epochs: int = 200, patience: int = 15, val_frac: float = 0.15,
+        max_epochs: int = 200, patience: int = 15, val_frac: float = AE_VAL_FRAC,
     ) -> None:
         self.n_members = n_members
         self.base_seed = base_seed

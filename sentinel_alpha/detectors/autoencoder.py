@@ -10,7 +10,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from sentinel_alpha.detectors.base import AnomalyDetector
-from sentinel_alpha.config import SEED
+from sentinel_alpha.config import SEED, AE_VAL_FRAC
 from sentinel_alpha.utils.seeding import set_global_seed
 
 
@@ -38,7 +38,7 @@ class AEDetector(AnomalyDetector):
                  dropout: float = 0.2, noise_std: float = 0.05,
                  lr: float = 1e-3, batch_size: int = 64,
                  max_epochs: int = 200, patience: int = 15,
-                 val_frac: float = 0.15, random_state: int = SEED) -> None:
+                 val_frac: float = AE_VAL_FRAC, random_state: int = SEED) -> None:
         self.bottleneck = bottleneck
         self.hidden = hidden
         self.mid = mid

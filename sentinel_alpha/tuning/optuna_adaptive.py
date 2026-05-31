@@ -6,9 +6,11 @@ Search space (small on purpose -- we're tuning two real-valued knobs on the
     roll_win in [13, 104]    # 3 months to 2 years
     roll_q   in [0.80, 0.97] # top-3% to top-20%
 
-Objective: net Sharpe of a TC-aware backtest run on the CV-period max-pool
-score, with the rolling-window causal quantile threshold. The hold-out is
-never touched during the search.
+Objective: by default the **net Calmar ratio** (return per unit of max
+drawdown) of a TC-aware backtest run on the CV-period max-pool score, with
+the rolling-window causal quantile threshold. This default reflects the
+Risk Management framing of the system; pass ``objective="sharpe"`` or
+``"sortino"`` to compare. The hold-out is never touched during the search.
 
 The search prints best parameters and persists them to
 `artifacts/optuna_adaptive.json`.
@@ -20,7 +22,7 @@ import numpy as np
 import pandas as pd
 import optuna
 
-from sentinel_alpha.config import ARTIFACTS_DIR, SEED
+from sentinel_alpha.config import ARTIFACTS_DIR, SEED, DEFAULT_TUNING_OBJECTIVE
 from sentinel_alpha.strategy import run_backtest, build_strategy_returns
 
 
@@ -28,7 +30,7 @@ def _backtest_for_params(
     max_cv: np.ndarray, cv_index: pd.DatetimeIndex,
     risk_on_cv: pd.Series, defensive_cv: pd.Series,
     roll_win: int, roll_q: float,
-    objective: str = "sharpe",
+    objective: str = DEFAULT_TUNING_OBJECTIVE,
 ) -> float:
     ser = pd.Series(max_cv, index=cv_index)
     thr = ser.rolling(roll_win, min_periods=max(8, min(roll_win, roll_win // 2))).quantile(roll_q).shift(1)
@@ -47,7 +49,7 @@ def optimise_adaptive_thresholding(
     prices_raw_path: Path | None = None,
     n_trials: int = 80,
     seed: int = SEED,
-    objective: str = "sharpe",
+    objective: str = DEFAULT_TUNING_OBJECTIVE,
     verbose: bool = True,
 ) -> dict:
     """Run the Optuna study; return the best params + diagnostics."""

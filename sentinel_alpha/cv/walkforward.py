@@ -48,7 +48,17 @@ class PurgedExpandingSplit:
         self.val_len = val_len_weeks
 
     def split(self, index: pd.DatetimeIndex) -> Generator[Fold, None, None]:
-        """Yield Fold objects walking from `initial_train_end` to `holdout_start`."""
+        """Yield Fold objects walking from `initial_train_end` to `holdout_start`.
+
+        Leakage controls
+        ----------------
+        * **Purge** (``self.purge`` weeks): gap *before* every validation block,
+          preventing train labels from leaking into val.
+        * **Embargo** (``self.embargo`` weeks): gap *after* every validation
+          block. These weeks are explicitly **excluded from the next fold's
+          training set** -- they form a post-val "trust gap" that prevents
+          val_k labels from leaking into train_{k+1}.
+        """
         idx = pd.DatetimeIndex(index)
         n = len(idx)
         pos = lambda ts: int(np.searchsorted(idx.values, np.datetime64(ts), side="left"))
@@ -57,8 +67,12 @@ class PurgedExpandingSplit:
         holdout_start_pos = pos(self.holdout_start)
 
         fold_id = 0
+        # First fold: pre-val gap = purge only (no prior val exists).
+        # Subsequent folds: pre-val gap = purge + embargo, so the embargo
+        # weeks immediately after val_{k-1} never enter train_k either.
+        gap_before_val = self.purge
         while True:
-            val_start = train_end_pos + 1 + self.purge
+            val_start = train_end_pos + 1 + gap_before_val
             val_end = val_start + self.val_len  # exclusive
             if val_end > holdout_start_pos or val_end > n:
                 break
@@ -72,8 +86,10 @@ class PurgedExpandingSplit:
                 val_dates=idx[val_idx],
             )
             fold_id += 1
-            # next training window expands through this val block plus embargo
-            train_end_pos = val_end - 1 + self.embargo
+            # Expanding training: include the val block we just produced, but
+            # NOT the embargo window after it (that gap stays excluded forever).
+            train_end_pos = val_end - 1
+            gap_before_val = self.purge + self.embargo
 
     def holdout_idx(self, index: pd.DatetimeIndex) -> np.ndarray:
         idx = pd.DatetimeIndex(index)

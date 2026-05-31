@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from sentinel_alpha.config import SEED
+from sentinel_alpha.config import SEED, CAL_FRAC
 from sentinel_alpha.detectors import build_default_detectors, AnomalyDetector
 from sentinel_alpha.stack.rank import EmpiricalQuantile
 from sentinel_alpha.stack.stacker import LogRegStacker
@@ -44,8 +44,20 @@ class StackPipeline:
     The pipeline emits both `p_raw` (uncalibrated logreg probability, suitable
     for ranking metrics) and `p_cal` (calibrated probability, suitable for
     threshold-based decisions in the state machine).
+
+    Parameters
+    ----------
+    cal_frac : float, default = ``config.CAL_FRAC`` (= 0.20)
+        Fraction of the training fold reserved for isotonic calibration.
+    detector_factory : callable
+        Factory returning the dict ``{name: AnomalyDetector}`` to build the
+        stack from. The default uses the 7-detector registry.
+    detector_names : list[str]
+        Subset of detectors actually used in the stack (order-preserving).
+    random_state : int
+        Seed driving the stratified calibration carve-out.
     """
-    cal_frac: float = 0.20
+    cal_frac: float = CAL_FRAC
     detector_factory: Callable[[], dict[str, AnomalyDetector]] = field(default=build_default_detectors)
     # Default stack: 7 unsupervised / semi-supervised detectors.
     # The supervised RF / LogReg classes are available (DETECTOR_REGISTRY) but

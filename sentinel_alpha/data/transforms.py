@@ -60,5 +60,12 @@ def stationarize(
         else:
             raise ValueError(f"Unknown rule '{rule}' for column '{c}'")
     out = pd.concat(cols, axis=1).iloc[1:]  # drop first row (NaN from diff/logret)
-    assert not out.isna().any().any(), "NaNs leaked through stationarize()"
+    # Hard guard: NaNs must not propagate to downstream feature engineering or
+    # detector fits. `raise` (not `assert`) so the check survives `python -O`.
+    if out.isna().any().any():
+        bad = out.columns[out.isna().any()].tolist()
+        raise ValueError(
+            f"NaNs leaked through stationarize() in columns: {bad[:10]}"
+            + (f" ... (+{len(bad) - 10} more)" if len(bad) > 10 else "")
+        )
     return out

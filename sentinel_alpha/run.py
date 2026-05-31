@@ -9,9 +9,7 @@ Usage
 """
 from __future__ import annotations
 import argparse
-import json
 import sys
-from dataclasses import asdict
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score, average_precision_score

@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Sentinel-alpha: a calibrated multi-view nowcaster for systematic risk-on / risk-off allocation."
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{name = "Filippo Cavalieri"}]
+authors = [{name = "Group 15 — PoliMI Fintech Lab 2024/25"}]
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
@@ -21,10 +21,18 @@ dependencies = [
     "torch>=2.1",
     "pyod>=2.0",
     "shap>=0.45",
+    "optuna>=3.5",
+    "umap-learn>=0.5",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "jupyter>=1.0", "ipykernel>=6.0"]
+dev = [
+    "pytest>=8.0",
+    "jupyter>=1.0",
+    "ipykernel>=6.0",
+    "ruff>=0.4",
+    "nbstripout>=0.7",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -33,3 +41,18 @@ include = ["sentinel_alpha*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "E731",   # do not assign a lambda expression (used intentionally for short pos() helper)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B", "F401"]
+"sentinel_alpha/explain/*" = ["B008"]

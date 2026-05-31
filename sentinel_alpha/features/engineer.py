@@ -3,10 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-
-VOL_WIN: int = 4
-CORR_WIN: int = 4
-Z_WIN: int = 52
+from sentinel_alpha.config import VOL_WIN, CORR_WIN, Z_WIN
 
 # Pruning policy (see notebook Step 4 diagnostic, all computed pre-hold-out).
 # ENG candidates with univariate AUC < 0.55 -- dropped.
@@ -98,5 +95,12 @@ def add_engineered(Z: pd.DataFrame, prune_weak: bool = True) -> tuple[pd.DataFra
         drop_lag1 = [c for c in all_lag1 if c not in KEEP_LAG1]
         out = out.drop(columns=weak_eng + drop_lag1)
 
-    assert not out.isna().any().any(), "NaNs leaked through add_engineered()"
+    # Hard guard: same rationale as stationarize() -- use `raise` so the check
+    # is not silently stripped by `python -O`.
+    if out.isna().any().any():
+        bad = out.columns[out.isna().any()].tolist()
+        raise ValueError(
+            f"NaNs leaked through add_engineered() in columns: {bad[:10]}"
+            + (f" ... (+{len(bad) - 10} more)" if len(bad) > 10 else "")
+        )
     return out, risk_appetite

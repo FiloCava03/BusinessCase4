@@ -1,7 +1,6 @@
 """Weekly P&L engine for the risk-on/risk-off switch with transaction costs."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional
 import numpy as np
 import pandas as pd
 
@@ -157,8 +156,13 @@ def run_backtest(
             "off_rate": n_off / n_weeks,
             "strategy_ret": cum_strat,
             "bench_ret": cum_bench,
+            "excess_ret": cum_strat - cum_bench,
             "strategy_max_dd": max_dd_strat,
             "bench_max_dd": max_dd_bench,
+            # Defensive overlay headline KPI: how much drawdown the strategy
+            # absorbed during the crisis (positive = strategy was less down).
+            # Both quantities are negative numbers, so we subtract (bench - strat).
+            "dd_reduction": max_dd_strat - max_dd_bench,
         })
     crisis_df = pd.DataFrame(crisis_rows)
 
